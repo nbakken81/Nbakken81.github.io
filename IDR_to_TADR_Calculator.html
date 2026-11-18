@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDR → TADR Calculator</title>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#1B2A4A; --amber:#D9A441; --amberD:#9A7420; --ice:#EAF0F7; --cream:#FAF5EA;
+    --rust:#B5542D; --redbg:#FBEFE8; --green:#2E7D32; --greenbg:#E8F2E9;
+    --ink:#1A1A1A; --grey:#55595F; --line:#C9CFDA; --bg:#FFFFFF; --panel:#F7F8FA;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      color-scheme: dark;
+      --navy:#0F1930; --ice:#1B2740; --cream:#2A2518; --redbg:#331E17; --greenbg:#172B1A;
+      --ink:#E8EAED; --grey:#A7AEB8; --line:#39414F; --bg:#121722; --panel:#1A2030;
+      --amber:#E0B35C; --amberD:#E0B35C; --green:#7BC47F; --rust:#E08A63;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.45 "Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--navy);color:#fff;padding:14px 20px;border-bottom:4px solid var(--amber)}
+  header h1{margin:0;font-size:19px;letter-spacing:.2px}
+  header p{margin:4px 0 0;font-size:12.5px;color:#C6CDD8}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 20px 40px}
+  .grid{display:grid;grid-template-columns:minmax(330px,0.9fr) 1.3fr;gap:18px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1.1px;color:var(--amberD);margin:0 0 10px}
+  label{display:block;font-size:12.5px;color:var(--grey);margin:9px 0 3px}
+  input,select{width:100%;padding:7px 8px;font-size:14px;border:1px solid var(--line);
+    border-radius:5px;background:var(--bg);color:var(--ink)}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .row .u{flex:0 0 108px}
+  .modes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+  .modes button{flex:1 1 auto;padding:8px 6px;font-size:12.5px;cursor:pointer;border:1px solid var(--line);
+    background:var(--bg);color:var(--ink);border-radius:5px}
+  .modes button.on{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:600}
+  .hint{font-size:11.5px;color:var(--grey);margin:6px 0 0}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  th,td{border:1px solid var(--line);padding:6px 8px;font-size:13px;text-align:left;vertical-align:middle}
+  th{background:var(--navy);color:#fff;font-size:12px;font-weight:600}
+  tbody tr:nth-child(even){background:var(--cream)}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .big{font-size:15px;font-weight:700}
+  .verdict{padding:10px 12px;border-radius:6px;font-weight:700;margin-top:10px;font-size:14px}
+  .pass{background:var(--greenbg);color:var(--green);border:1px solid var(--green)}
+  .fail{background:var(--redbg);color:var(--rust);border:1px solid var(--rust)}
+  .na{background:var(--ice);color:var(--grey);border:1px solid var(--line);font-weight:600}
+  .ok{color:var(--green);font-weight:700}.over{color:var(--rust);font-weight:700}
+  .steps td:first-child{width:38px;text-align:center;font-weight:700;color:var(--amberD)}
+  footer{margin-top:16px;font-size:11px;color:var(--grey);line-height:1.5}
+  .legend{font-size:12px;color:var(--grey)}
+  .legend b{color:var(--ink)}
+  .hide{display:none}
+  @media print{
+    body{background:#fff}header{border-bottom:2px solid #000}
+    .modes,.hint{display:none}.grid{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>IDR → TADR Calculator</h1>
+  <p>Instantaneous dose rate to time-averaged dose rate — primary, leakage, and patient-scatter barriers. Legacy and SI side by side.</p>
+</header>
+
+<div class="wrap">
+<div class="grid">
+
+  <!-- ============ INPUTS ============ -->
+  <div>
+    <div class="card">
+      <h2>1 · Barrier type</h2>
+      <div class="modes">
+        <button type="button" data-mode="primary" class="on">Primary</button>
+        <button type="button" data-mode="leakage">Leakage</button>
+        <button type="button" data-mode="scatter">Patient scatter</button>
+        <button type="button" data-mode="split">Split reading</button>
+      </div>
+      <p class="hint" id="modeHint"></p>
+    </div>
+
+    <div class="card">
+      <h2>2 · The reading</h2>
+      <div id="singleRead">
+        <label>IDR — meter reading at maximum machine output</label>
+        <div class="row">
+          <input id="idr" type="number" step="any" value="2.5">
+          <select id="idrUnit" class="u">
+            <option value="mR">mR/h</option>
+            <option value="mrem">mrem/h</option>
+            <option value="uSv">µSv/h</option>
+          </select>
+        </div>
+      </div>
+      <div id="splitRead" class="hide">
+        <label>Total reading — phantom at isocenter, field open</label>
+        <div class="row">
+          <input id="idrTotal" type="number" step="any" value="3.0">
+          <select id="idrTotalUnit" class="u">
+            <option value="mR">mR/h</option><option value="mrem">mrem/h</option><option value="uSv">µSv/h</option>
+          </select>
+        </div>
+        <label>Leakage only — jaws / MLC closed</label>
+        <div class="row">
+          <input id="idrLeak" type="number" step="any" value="1.2">
+          <select id="idrLeakUnit" class="u">
+            <option value="mR">mR/h</option><option value="mrem">mrem/h</option><option value="uSv">µSv/h</option>
+          </select>
+        </div>
+        <p class="hint">Scatter is taken as the difference, then converted with W while leakage uses W<sub>L</sub>.</p>
+      </div>
+
+      <label>Ḋ₀ — machine output at isocenter <em>during this measurement</em></label>
+      <div class="row">
+        <input id="d0" type="number" step="any" value="6">
+        <select id="d0Unit" class="u">
+          <option value="min">Gy/min</option>
+          <option value="h">Gy/h</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3 · Workload &amp; geometry</h2>
+      <div id="fW">
+        <label>W — treatment workload (Gy/wk at isocenter)</label>
+        <input id="w" type="number" step="any" value="400">
+      </div>
+      <div id="fU">
+        <label>U — use factor for this barrier</label>
+        <input id="u" type="number" step="any" value="0.25">
+      </div>
+      <div id="fWL" class="hide">
+        <label>W<sub>L</sub> — leakage workload (Gy/wk; W inflated by the IMRT factor)</label>
+        <input id="wl" type="number" step="any" value="800">
+        <p class="hint">W<sub>L</sub> = W<sub>conv</sub> + C<sub>I</sub> × W<sub>IMRT</sub>. Or divide total weekly MU by your survey MU rate and enter the clock directly below.</p>
+      </div>
+      <label>T — occupancy factor</label>
+      <select id="tSel">
+        <option value="1">1 — office, console, nurse station, occupied adjacent building</option>
+        <option value="0.5">1/2 — adjacent exam or treatment room</option>
+        <option value="0.2">1/5 — corridor, staff lounge, staff restroom</option>
+        <option value="0.125">1/8 — corridor door</option>
+        <option value="0.05">1/20 — storage, public toilet, unattended waiting</option>
+        <option value="0.025">1/40 — unattended parking, stairway, attic</option>
+        <option value="custom">custom…</option>
+      </select>
+      <input id="tCustom" type="number" step="any" value="1" class="hide">
+      <label>Area designation</label>
+      <select id="area">
+        <option value="unc">Uncontrolled — P = 2 mrem/wk (20 µSv), 100 mrem/yr, 2 mrem in any hour</option>
+        <option value="ctrl">Controlled — P = 10 mrem/wk (100 µSv), 5 rem/yr, no hourly limit</option>
+      </select>
+      <label>Weeks per year</label>
+      <input id="weeks" type="number" step="any" value="50">
+    </div>
+
+    <div class="card">
+      <h2>4 · Busiest hour <span class="legend">(uncontrolled only)</span></h2>
+      <label>Gy delivered toward this barrier in the peak hour</label>
+      <input id="peakGy" type="number" step="any" value="6.25">
+      <p class="hint">Helper: fractions in the hour × Gy per fraction × U<sub>h</sub>. Bound U<sub>h</sub> from the real peak-hour plans (0.5 is a common bound) — do <b>not</b> reuse the long-run 0.25. For leakage or scatter points use the full hour's delivery with U = 1.</p>
+    </div>
+
+    <div class="card" id="scatterCard">
+      <h2>5 · Scatter estimate <span class="legend">(design check — optional)</span></h2>
+      <p class="hint">A measured reading already contains the scatter fraction. Use this only to <em>predict</em> a scatter IDR when there is nothing to measure yet.</p>
+      <label>a — scatter fraction at the relevant angle (NCRP 151 Table B.4)</label>
+      <input id="aFrac" type="number" step="any" value="0.0014">
+      <div class="row">
+        <div><label>F — field area at mid-depth (cm²)</label><input id="fArea" type="number" step="any" value="1600"></div>
+        <div><label>d<sub>sec</sub> — patient → point (m)</label><input id="dSec" type="number" step="any" value="3"></div>
+      </div>
+      <p class="hint" id="scatterOut"></p>
+    </div>
+  </div>
+
+  <!-- ============ RESULTS ============ -->
+  <div>
+    <div class="card">
+      <h2>The five steps</h2>
+      <table class="steps">
+        <thead><tr><th>Step</th><th>What you compute</th><th style="text-align:right">Legacy</th><th style="text-align:right">SI</th></tr></thead>
+        <tbody id="stepsBody"></tbody>
+      </table>
+      <div id="verdictWeek" class="verdict"></div>
+      <div id="verdictYear" class="verdict"></div>
+      <div id="verdictHour" class="verdict"></div>
+    </div>
+
+    <div class="card">
+      <h2>Threshold — the reading that would fail this point</h2>
+      <table>
+        <thead><tr><th>Test</th><th style="text-align:right">Max IDR</th><th style="text-align:right">SI</th><th>Governs</th></tr></thead>
+        <tbody id="threshBody"></tbody>
+      </table>
+      <p class="hint" id="threshNote"></p>
+    </div>
+
+    <div class="card">
+      <h2>What the symbols mean</h2>
+      <table>
+        <tbody class="legend">
+          <tr><td><b>IDR</b></td><td>meter reading with the machine at maximum output</td></tr>
+          <tr><td><b>Ḋ₀</b></td><td>machine output at isocenter <em>during that reading</em> (Gy/h)</td></tr>
+          <tr><td><b>W</b></td><td>treatment workload — dose delivered at isocenter each week (Gy/wk)</td></tr>
+          <tr><td><b>W<sub>L</sub></b></td><td>leakage workload — W inflated by the IMRT factor, because leakage tracks MU</td></tr>
+          <tr><td><b>U</b></td><td>use factor — fraction of beam time aimed at this barrier (1 for leakage and scatter)</td></tr>
+          <tr><td><b>T</b></td><td>occupancy factor — fraction of the week the most-exposed person is there</td></tr>
+          <tr><td><b>a</b></td><td>scatter fraction — scattered dose at 1 m per unit dose at the patient, per 400 cm²</td></tr>
+          <tr><td><b>t</b></td><td>the clock — hours of beam per week relevant to this point</td></tr>
+        </tbody>
+      </table>
+      <p class="hint"><b>Units:</b> W and Ḋ₀ are both in gray, so the gray cancels and the clock is pure time — the meter's unit carries straight through to the answer. 1 mR ≈ 1 mrem ≈ 10 µSv is the field convention (strictly 1 mR = 8.76 µGy air kerma, so the convention runs ~14% conservative).</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Method follows NCRP Report No. 151 in simplified notation; dose limits per 10 CFR 20.1201 and 20.1301 as incorporated in Pennsylvania through 25 Pa. Code Ch. 219 — verify current section citations for compliance use.
+  This is a teaching and field-screening aid, not a substitute for a qualified expert's shielding evaluation. Nothing is transmitted anywhere; all arithmetic runs in this page.
+</footer>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  let mode = "primary";
+
+  const HINTS = {
+    primary: "Beam can be aimed at this barrier. Clock t = W·U / Ḋ₀.",
+    leakage: "Secondary wall, door, or console. Leakage reaches it at every gantry angle, so U = 1 and the leakage workload applies: t = W_L / Ḋ₀.",
+    scatter: "Patient scatter alone. The patient is in the beam at every gantry angle, so U = 1 and the clock uses the treatment workload: t = W / Ḋ₀. Directionality lives in the scatter fraction a, not in U.",
+    split: "One meter reading at a secondary point contains leakage and scatter together. Measure jaws-closed (leakage) and phantom-in (total), convert each with its own workload, and add."
+  };
+
+  function toMrem(v, unit){ return unit === "uSv" ? v/10 : v; }  // mR ≈ mrem; µSv ÷10
+  function fmt(x){
+    if (!isFinite(x)) return "—";
+    const a = Math.abs(x);
+    if (a === 0) return "0";
+    if (a >= 1000) return x.toLocaleString(undefined,{maximumFractionDigits:0});
+    if (a >= 100) return x.toFixed(0);
+    if (a >= 10) return x.toFixed(1);
+    if (a >= 1) return x.toFixed(2);
+    if (a >= 0.01) return x.toFixed(3);
+    return x.toExponential(1);
+  }
+  const num = id => parseFloat($(id).value) || 0;
+
+  function setMode(m){
+    mode = m;
+    document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+    $("modeHint").textContent = HINTS[m];
+    $("singleRead").classList.toggle("hide", m === "split");
+    $("splitRead").classList.toggle("hide", m !== "split");
+    $("fU").classList.toggle("hide", m !== "primary");
+    $("fWL").classList.toggle("hide", m === "primary" || m === "scatter");
+    $("fW").classList.toggle("hide", m === "leakage");
+    $("scatterCard").classList.toggle("hide", !(m === "scatter" || m === "split"));
+    calc();
+  }
+
+  function calc(){
+    const d0 = $("d0Unit").value === "min" ? num("d0")*60 : num("d0");   // Gy/h
+    const W = num("w"), U = num("u"), WL = num("wl"), weeks = num("weeks");
+    const T = $("tSel").value === "custom" ? num("tCustom") : parseFloat($("tSel").value);
+    const ctrl = $("area").value === "ctrl";
+    const P = ctrl ? 10 : 2;                 // mrem/wk
+    const annLimit = ctrl ? 5000 : 100;      // mrem/yr
+    const hourLimit = ctrl ? null : 2;       // mrem in any hour
+
+    // ---- clock(s) ----
+    let t = 0, clockLabel = "";
+    if (mode === "primary"){ t = d0 ? W*U/d0 : 0; clockLabel = "t = W·U / Ḋ₀ = " + fmt(W) + " × " + U + " / " + fmt(d0); }
+    else if (mode === "leakage"){ t = d0 ? WL/d0 : 0; clockLabel = "t = W_L / Ḋ₀ = " + fmt(WL) + " / " + fmt(d0); }
+    else if (mode === "scatter"){ t = d0 ? W/d0 : 0; clockLabel = "t = W / Ḋ₀ = " + fmt(W) + " / " + fmt(d0) + "  (U = 1)"; }
+    const tL = d0 ? WL/d0 : 0, tS = d0 ? W/d0 : 0;
+
+    // ---- weekly area dose ----
+    let idrMrem, areaWk, readLabel;
+    if (mode === "split"){
+      const tot = toMrem(num("idrTotal"), $("idrTotalUnit").value);
+      const leak = toMrem(num("idrLeak"), $("idrLeakUnit").value);
+      const scat = Math.max(tot - leak, 0);
+      idrMrem = tot;
+      areaWk = leak*tL + scat*tS;
+      t = tot ? areaWk/tot : 0;   // effective clock, for the threshold
+      readLabel = "leakage " + fmt(leak) + " × " + fmt(tL) + " h + scatter " + fmt(scat) + " × " + fmt(tS) + " h";
+      clockLabel = "effective clock = " + fmt(t) + " h/wk";
+    } else {
+      idrMrem = toMrem(num("idr"), $("idrUnit").value);
+      areaWk = idrMrem * t;
+      readLabel = fmt(idrMrem) + " × " + fmt(t) + " h";
+    }
+
+    const personWk = areaWk * T;
+    const annual = personWk * weeks;
+
+    // ---- busiest hour (area dose, no T) ----
+    const peakGy = num("peakGy");
+    const th = d0 ? peakGy/d0 : 0;
+    const hourDose = idrMrem * th;
+
+    // ---- steps table ----
+    const rows = [
+      ["1", mode === "split" ? "Readings (total / leakage only)" : "Read the meter (IDR)",
+        mode === "split" ? fmt(toMrem(num("idrTotal"),$("idrTotalUnit").value)) + " / " + fmt(toMrem(num("idrLeak"),$("idrLeakUnit").value)) + " mrem/h"
+                         : fmt(idrMrem) + " mrem/h",
+        mode === "split" ? fmt(toMrem(num("idrTotal"),$("idrTotalUnit").value)*10) + " / " + fmt(toMrem(num("idrLeak"),$("idrLeakUnit").value)*10) + " µSv/h"
+                         : fmt(idrMrem*10) + " µSv/h"],
+      ["2", "Clock — " + clockLabel, fmt(t) + " h/wk", "same"],
+      ["3", "Area dose: " + readLabel, fmt(areaWk) + " mrem/wk", fmt(areaWk*10) + " µSv/wk"],
+      ["4", "Person dose: × T = " + T, fmt(personWk) + " mrem/wk", fmt(personWk*10) + " µSv/wk"],
+      ["5a", "Annual: × " + fmt(weeks) + " wk", fmt(annual) + " mrem/yr", fmt(annual/100) + " mSv/yr"],
+      ["5b", "Busiest hour: " + fmt(idrMrem) + " × " + fmt(th) + " h  (no T)",
+        ctrl ? "n/a — no hourly limit" : fmt(hourDose) + " mrem",
+        ctrl ? "n/a" : fmt(hourDose*10) + " µSv"]
+    ];
+    $("stepsBody").innerHTML = rows.map(r =>
+      "<tr><td>"+r[0]+"</td><td>"+r[1]+"</td><td class='n big'>"+r[2]+"</td><td class='n'>"+r[3]+"</td></tr>").join("");
+
+    // ---- verdicts ----
+    const vw = $("verdictWeek"), vy = $("verdictYear"), vh = $("verdictHour");
+    const wkPass = personWk <= P, yrPass = annual <= annLimit;
+    vw.className = "verdict " + (wkPass ? "pass" : "fail");
+    vw.innerHTML = (wkPass ? "PASS" : "FAIL") + " — weekly: " + fmt(personWk) + " mrem/wk (" + fmt(personWk*10) +
+      " µSv) vs P = " + P + " mrem/wk (" + P*10 + " µSv)" +
+      (wkPass ? " — " + fmt(personWk/P*100) + "% of goal" : " — over by " + fmt(personWk/P) + "×");
+    vy.className = "verdict " + (yrPass ? "pass" : "fail");
+    vy.innerHTML = (yrPass ? "PASS" : "FAIL") + " — annual: " + fmt(annual) + " mrem/yr (" + fmt(annual/100) +
+      " mSv) vs " + annLimit.toLocaleString() + " mrem/yr (" + (annLimit/100) + " mSv)";
+    if (ctrl){
+      vh.className = "verdict na";
+      vh.innerHTML = "No hourly test — the any-one-hour limit applies to members of the public, not to workers in a controlled area.";
+    } else {
+      const hrPass = hourDose <= hourLimit;
+      vh.className = "verdict " + (hrPass ? "pass" : "fail");
+      vh.innerHTML = (hrPass ? "PASS" : "FAIL") + " — busiest hour: " + fmt(hourDose) + " mrem (" + fmt(hourDose*10) +
+        " µSv) vs 2 mrem (20 µSv), with no occupancy credit" +
+        (hrPass ? "" : " — over by " + fmt(hourDose/hourLimit) + "×");
+    }
+
+    // ---- thresholds ----
+    const wkMax = (t > 0 && T > 0) ? P/(t*T) : Infinity;
+    const hrMax = (!ctrl && th > 0) ? hourLimit/th : Infinity;
+    const governs = wkMax <= hrMax ? "weekly" : "hourly";
+    $("threshBody").innerHTML =
+      "<tr><td>Weekly — P ÷ (t × T)</td><td class='n big'>" + fmt(wkMax) + " mrem/h</td><td class='n'>" + fmt(wkMax*10) +
+      " µSv/h</td><td>" + (governs === "weekly" ? "<span class='over'>governs</span>" : "") + "</td></tr>" +
+      "<tr><td>Hourly — 2 mrem ÷ t_h</td><td class='n big'>" + (ctrl ? "none" : fmt(hrMax) + " mrem/h") +
+      "</td><td class='n'>" + (ctrl ? "—" : fmt(hrMax*10) + " µSv/h") + "</td><td>" +
+      (governs === "hourly" ? "<span class='over'>governs</span>" : "") + "</td></tr>";
+    const gov = Math.min(wkMax, hrMax);
+    $("threshNote").innerHTML = "Anything above <b>" + fmt(gov) + " mrem/h (" + fmt(gov*10) +
+      " µSv/h)</b> fails this point. Measured: " + fmt(idrMrem) + " mrem/h — " +
+      (idrMrem <= gov ? "<span class='ok'>under</span>" : "<span class='over'>over</span>") + ".";
+
+    // ---- optional scatter estimate ----
+    if (mode === "scatter" || mode === "split"){
+      const a = num("aFrac"), F = num("fArea"), dsec = num("dSec");
+      const est = dsec > 0 ? a * d0 * (F/400) / (dsec*dsec) : 0;   // Gy/h at the point
+      const estMrem = est * 1e5;                                   // Gy → rad → mrad ≈ mrem
+      $("scatterOut").innerHTML = "Predicted scatter IDR ≈ <b>" + fmt(estMrem) + " mrem/h (" + fmt(estMrem*10) +
+        " µSv/h)</b> at " + dsec + " m, before any barrier. " +
+        "a × Ḋ₀ × (F/400) ÷ d<sub>sec</sub>², with the patient at 1 m from the target. " +
+        "Compare with what you measured — if they disagree badly, check the angle you took a from.";
+    }
+  }
+
+  document.querySelectorAll(".modes button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  $("tSel").addEventListener("change", () => {
+    $("tCustom").classList.toggle("hide", $("tSel").value !== "custom"); calc();
+  });
+  document.querySelectorAll("input,select").forEach(el => el.addEventListener("input", calc));
+  setMode("primary");
+})();
+</script>
+</body>
+</html>
