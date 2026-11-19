@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Barrier Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F7F3EA; --surface: #FFFFFF; --ink: #1B2638; --muted: #5B7A99; --navy: #1F3A5F; --navy-ink: #FFFFFF;
+  --amber: #E8A33D; --amber-ink: #1F3A5F; --rule: #DDD6C6; --field: #FBF9F4; --warn: #B5432F; --ok: #2E7D5B;
+  --serif: "IBM Plex Serif", Cambria, Georgia, serif; --sans: "IBM Plex Sans", Calibri, "Segoe UI", system-ui, sans-serif;
+  color-scheme: light; box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111A27; --surface: #18263A; --ink: #ECE6D8; --muted: #9DB2CB; --navy: #2A4C78; --navy-ink: #FFFFFF;
+    --amber: #EDB04F; --amber-ink: #142338; --rule: #2C3D55; --field: #13202F; --warn: #E07A63; --ok: #5FBF90; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111A27; --surface: #18263A; --ink: #ECE6D8; --muted: #9DB2CB; --navy: #2A4C78; --navy-ink: #FFFFFF;
+  --amber: #EDB04F; --amber-ink: #142338; --rule: #2C3D55; --field: #13202F; --warn: #E07A63; --ok: #5FBF90; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 32px 20px 48px; }
+h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; margin: 0 0 8px; }
+.lede { color: var(--muted); max-width: 72ch; margin: 0 0 24px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 22px; align-items: start; }
+@media (max-width: 880px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; margin-bottom: 22px; }
+.card-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--navy); color: var(--navy-ink); }
+.dot { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--amber); color: var(--amber-ink); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; }
+.card-head h2 { margin: 0; font-family: var(--serif); font-weight: 600; font-size: 1.15rem; line-height: 1.2; }
+.card-body { padding: 18px 20px; }
+fieldset { border: none; margin: 0 0 18px; padding: 0; }
+fieldset:last-child { margin-bottom: 0; }
+legend { font-family: var(--serif); font-weight: 600; font-size: 1.02rem; color: var(--navy); padding: 0; margin-bottom: 10px; }
+:root[data-theme="dark"] legend { color: var(--amber); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) legend { color: var(--amber); } }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 14px; }
+@media (max-width: 520px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.field label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+.hint { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+.row { display: flex; gap: 8px; }
+input[type="text"], select { font: inherit; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--field); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+input[type="text"] { flex: 1 1 auto; width: 100%; }
+select { width: 100%; cursor: pointer; }
+.row select { width: auto; flex: none; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+input.bad { border-color: var(--warn); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+.seg button { font: inherit; font-size: 0.9rem; border: none; background: transparent; color: var(--ink); padding: 7px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--navy); color: var(--navy-ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font: inherit; font-size: 0.8rem; border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.chip:hover { border-color: var(--amber); }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; }
+.check input { margin-top: 4px; accent-color: var(--navy); }
+.only-sec, .only-pri { }
+.hide { display: none !important; }
+
+.answer { border-left: 4px solid var(--amber); padding: 2px 0 2px 16px; margin-bottom: 14px; }
+.answer .label { font-size: 0.88rem; color: var(--muted); }
+.answer .value { font-family: var(--serif); font-weight: 600; font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.answer .sub { font-size: 0.95rem; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--field); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; }
+.stat .k { font-size: 0.8rem; color: var(--muted); }
+.stat .v { font-family: var(--serif); font-weight: 600; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.stat .v.ok { color: var(--ok); } .stat .v.warn { color: var(--warn); }
+.work { background: var(--field); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; font-family: var(--serif); font-size: 0.95rem; line-height: 1.7; overflow-x: auto; font-variant-numeric: tabular-nums; }
+.work h3 { font-family: var(--sans); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 10px 0 2px; }
+.work h3:first-child { margin-top: 0; }
+.work div { white-space: nowrap; }
+.note { font-size: 0.86rem; color: var(--muted); margin: 10px 0 0; }
+.note.warn { color: var(--warn); }
+table.it { border-collapse: collapse; width: 100%; font-size: 0.86rem; font-variant-numeric: tabular-nums; margin-top: 6px; }
+table.it th, table.it td { padding: 5px 8px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+table.it th { color: var(--muted); font-weight: 600; }
+table.it th:first-child, table.it td:first-child { text-align: left; }
+.scroll { overflow-x: auto; }
+details { margin-top: 14px; }
+summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+:root[data-theme="dark"] summary { color: var(--amber); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) summary { color: var(--amber); } }
+footer { color: var(--muted); font-size: 0.84rem; max-width: 90ch; }
+footer p { margin: 0 0 6px; }
+sup, sub { line-height: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Linac barrier thickness calculator</h1>
+  <p class="lede">Primary and secondary barrier thickness for megavoltage treatment rooms using the NCRP Report No. 151 method, with automatic iteration of the distance to the protected point. Results update as you type.</p>
+
+  <div class="layout">
+    <!-- INPUTS -->
+    <div>
+      <section class="card" aria-labelledby="inH">
+        <div class="card-head"><div class="dot" aria-hidden="true">1</div><h2 id="inH">Inputs</h2></div>
+        <div class="card-body">
+
+          <fieldset>
+            <legend>Barrier and area</legend>
+            <div class="field" style="margin-bottom:12px">
+              <label id="btypeL">Barrier type</label>
+              <div class="seg" role="group" aria-labelledby="btypeL">
+                <button type="button" id="bPri" aria-pressed="true">Primary</button>
+                <button type="button" id="bSec" aria-pressed="false">Secondary (leakage + scatter)</button>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="area">Area beyond the barrier</label>
+                <select id="area">
+                  <option value="0.02" selected>Uncontrolled (public)</option>
+                  <option value="0.1">Controlled</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="P">Design goal, P (mSv/wk)</label>
+                <input type="text" id="P" inputmode="decimal" value="0.02" autocomplete="off">
+                <span class="hint">Set by the area; editable.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Machine and workload</legend>
+            <div class="grid2">
+              <div class="field">
+                <label for="energy">Beam energy</label>
+                <select id="energy">
+                  <option value="co60">Co-60</option>
+                  <option value="4">4 MV</option>
+                  <option value="6" selected>6 MV</option>
+                  <option value="10">10 MV</option>
+                  <option value="15">15 MV</option>
+                  <option value="18">18 MV</option>
+                  <option value="20">20 MV</option>
+                  <option value="25">25 MV</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="W">Workload, W (Gy/wk at isocenter)</label>
+                <input type="text" id="W" inputmode="decimal" value="450" autocomplete="off">
+              </div>
+              <div class="field only-pri">
+                <label for="U">Use factor, U</label>
+                <input type="text" id="U" inputmode="decimal" value="0.25" autocomplete="off">
+                <span class="hint">Primary only. Secondary barriers use U = 1.</span>
+              </div>
+              <div class="field">
+                <label for="T">Occupancy factor, T</label>
+                <input type="text" id="T" inputmode="decimal" value="1" autocomplete="off">
+                <div class="chips">
+                  <button class="chip" type="button" data-t="1">1</button>
+                  <button class="chip" type="button" data-t="1/5">1/5</button>
+                  <button class="chip" type="button" data-t="1/8">1/8</button>
+                  <button class="chip" type="button" data-t="1/20">1/20</button>
+                  <button class="chip" type="button" data-t="1/40">1/40</button>
+                </div>
+              </div>
+              <div class="field only-sec hide">
+                <label for="fimrt">Share of workload delivered as IMRT (%)</label>
+                <input type="text" id="fimrt" inputmode="decimal" value="0" autocomplete="off">
+              </div>
+              <div class="field only-sec hide">
+                <label for="CI">IMRT factor, C<sub>I</sub></label>
+                <input type="text" id="CI" inputmode="decimal" value="5" autocomplete="off">
+                <span class="hint">MU per unit dose at isocenter, IMRT vs. conventional. Applies to leakage only.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Geometry</legend>
+            <div class="grid2">
+              <div class="field">
+                <label for="dmode">Distance you know</label>
+                <select id="dmode">
+                  <option value="wall" selected>Isocenter to inner face of barrier (iterate)</option>
+                  <option value="point">Isocenter to protected point (fixed)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="D">Distance</label>
+                <div class="row">
+                  <input type="text" id="D" inputmode="decimal" value="4.0" autocomplete="off">
+                  <select id="Dunit" aria-label="Distance units"><option value="1" selected>m</option><option value="0.3048">ft</option></select>
+                </div>
+                <span class="hint" id="Dhint">The protected point is taken 0.3 m beyond the outer face, so the distance is recalculated as the thickness changes.</span>
+              </div>
+              <div class="field">
+                <label for="SAD">Target to isocenter, SAD (m)</label>
+                <input type="text" id="SAD" inputmode="decimal" value="1.0" autocomplete="off">
+                <span class="hint only-pri">Added to the primary distance (measured from the target).</span>
+                <span class="hint only-sec hide">Used as d<sub>sca</sub>, target to patient.</span>
+              </div>
+              <div class="field only-sec hide">
+                <label for="angle">Scatter angle</label>
+                <select id="angle">
+                  <option value="30">30°</option>
+                  <option value="45">45°</option>
+                  <option value="60">60°</option>
+                  <option value="90" selected>90°</option>
+                  <option value="135">135°</option>
+                </select>
+              </div>
+              <div class="field only-sec hide">
+                <label for="F">Max field area at isocenter, F (cm²)</label>
+                <input type="text" id="F" inputmode="decimal" value="1600" autocomplete="off">
+                <span class="hint">1600 cm² = 40 × 40 cm.</span>
+              </div>
+              <div class="field only-pri">
+                <label for="fs">Max field side at isocenter (cm)</label>
+                <input type="text" id="fs" inputmode="decimal" value="40" autocomplete="off">
+                <span class="hint">Used for the primary band width.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Shielding material</legend>
+            <div class="grid2">
+              <div class="field">
+                <label for="mat">Material</label>
+                <select id="mat">
+                  <option value="concrete" selected>Ordinary concrete (2.35 g/cm³)</option>
+                  <option value="steel">Steel (7.87 g/cm³)</option>
+                  <option value="lead">Lead (11.35 g/cm³)</option>
+                  <option value="heavy">Heavyweight concrete (density-scaled)</option>
+                  <option value="earth">Compacted earth (density-scaled)</option>
+                  <option value="custom">Other material (density-scaled)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="rho">Density (g/cm³)</label>
+                <input type="text" id="rho" inputmode="decimal" value="2.35" autocomplete="off">
+                <span class="hint" id="rhoHint">Tabulated TVLs are used for this material.</span>
+              </div>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label id="tvlL">Tenth-value layers used (cm)</label>
+              <div class="scroll">
+                <table class="it" aria-labelledby="tvlL">
+                  <thead><tr><th>Component</th><th>TVL<sub>1</sub></th><th>TVL<sub>e</sub></th></tr></thead>
+                  <tbody>
+                    <tr id="rowP"><td>Primary beam</td><td><input type="text" id="p1" inputmode="decimal" style="width:5.5em"></td><td><input type="text" id="pe" inputmode="decimal" style="width:5.5em"></td></tr>
+                    <tr id="rowL" class="hide"><td>Leakage</td><td><input type="text" id="l1" inputmode="decimal" style="width:5.5em"></td><td><input type="text" id="le" inputmode="decimal" style="width:5.5em"></td></tr>
+                    <tr id="rowS" class="hide"><td>Patient scatter</td><td colspan="2"><input type="text" id="se" inputmode="decimal" style="width:5.5em"> <span class="hint" style="display:inline">single TVL</span></td></tr>
+                    <tr id="rowA" class="hide"><td>Scatter fraction, a</td><td colspan="2"><input type="text" id="aval" inputmode="decimal" style="width:7em"> <span class="hint" style="display:inline">per 400 cm² at 1 m</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <span class="hint" id="tvlNote">Filled from the built-in table when you change energy, material, or angle. Overwrite any value to use your own.</span>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Hourly check</legend>
+            <div class="grid2">
+              <div class="field">
+                <label for="M">Peak-to-average workload ratio, M</label>
+                <input type="text" id="M" inputmode="decimal" value="2.5" autocomplete="off">
+                <span class="hint">For dose in any one hour, R<sub>h</sub> = M × H / 40 h.</span>
+              </div>
+              <div class="field">
+                <label for="Rlim">Limit in any one hour (µSv)</label>
+                <input type="text" id="Rlim" inputmode="decimal" value="20" autocomplete="off">
+              </div>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+    </div>
+
+    <!-- RESULTS -->
+    <div>
+      <section class="card" aria-labelledby="outH">
+        <div class="card-head"><div class="dot" aria-hidden="true">2</div><h2 id="outH">Result</h2></div>
+        <div class="card-body" aria-live="polite">
+          <div class="row" style="justify-content:flex-end; margin-bottom:6px">
+            <div class="seg" role="group" aria-label="Thickness units">
+              <button type="button" id="uCm" aria-pressed="true">cm</button>
+              <button type="button" id="uIn" aria-pressed="false">inches</button>
+            </div>
+          </div>
+          <div class="answer">
+            <div class="label" id="ansLabel">Required primary barrier thickness</div>
+            <div class="value" id="ans">—</div>
+            <div class="sub" id="ansSub"></div>
+          </div>
+          <div class="stats" id="stats"></div>
+          <div class="work" id="work"></div>
+          <p class="note" id="msg"></p>
+          <details>
+            <summary>Iteration history</summary>
+            <div class="scroll"><table class="it" id="iter"></table></div>
+          </details>
+        </div>
+      </section>
+
+      <footer>
+        <p><strong>Method.</strong> Primary: B = P d²/(W U T), d from the target. Leakage: B = P d<sub>L</sub>²/(10⁻³ W<sub>L</sub> T), W<sub>L</sub> = W[(1 − f) + f C<sub>I</sub>], d from isocenter. Patient scatter: B = P d<sub>sca</sub>² d<sub>sec</sub>² 400/(a W T F). n = −log<sub>10</sub>B; t = TVL<sub>1</sub> + (n − 1)TVL<sub>e</sub>. Secondary barriers combine the two components: if their thicknesses differ by at least one TVL, the larger is used; otherwise one HVL is added to the larger.</p>
+        <p><strong>Data.</strong> Built-in TVLs and scatter fractions are from general knowledge of NCRP 151 Tables B.2, B.4, B.5a and B.7 and must be confirmed against the report. Steel and lead leakage TVLs are set equal to their primary values, and density-scaled materials scale ordinary-concrete TVLs by 2.35/ρ; both are conservative approximations, especially for high-Z materials at scatter energies.</p>
+        <p><strong>Not included.</strong> Photoneutrons above 10 MV, maze and door design, laminated barriers, and skyshine. This is a checking and teaching aid, not a substitute for a shielding report by a qualified expert.</p>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var barrier = "pri", unit = "cm";
+
+  // ---------- Built-in data (verify against NCRP 151) ----------
+  var E_KEYS = ["co60", "4", "6", "10", "15", "18", "20", "25"];
+  var PRI = {
+    concrete: { co60: [21, 
